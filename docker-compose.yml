@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  api-mock:
+    build: .
+    command: python mock_services/api_mock.py
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/users"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  web-mock:
+    build: .
+    command: python mock_services/web_mock.py
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  step-gateway:
+    build: .
+    command: python mock_services/step_gateway_mock.py
+    ports:
+      - "9000:9000"
+
+  test-runner:
+    build: .
+    depends_on:
+      api-mock:
+        condition: service_healthy
+      web-mock:
+        condition: service_healthy
+      step-gateway:
+        condition: service_started
+    volumes:
+      - ./reports:/app/reports
+    command: >
+      pytest tests/ step_defs/ -v
+      --alluredir=reports/allure-results
+      --html=reports/report.html --self-contained-html

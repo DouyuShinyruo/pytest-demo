@@ -49,12 +49,14 @@ def update_user(user_id):
         return jsonify({"error": "用户不存在"}), 404
 
     data = request.get_json()
-    if data.get("name"):
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    if "name" in data:
         user["name"] = data["name"]
-    if data.get("email"):
+    if "email" in data:
         user["email"] = data["email"]
 
-    users_db[user_id] = user
     return jsonify(user)
 
 

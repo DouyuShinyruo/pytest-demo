@@ -1,6 +1,8 @@
 docs/
-reports/
-logs/
+/logs/
+/reports/
+!test_data/reports/
+!tests/reports/
 __pycache__/
 *.pyc
 *.pyo

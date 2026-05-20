@@ -1,0 +1,27 @@
+- name: "创建用户-正常"
+  method: POST
+  path: /api/users
+  body:
+    name: "张三"
+    email: "zhangsan@example.com"
+  expected_status: 201
+  expected_fields:
+    - name
+    - id
+
+- name: "创建用户-用户名为空"
+  method: POST
+  path: /api/users
+  body:
+    name: ""
+  expected_status: 400
+
+- name: "获取用户列表"
+  method: GET
+  path: /api/users
+  expected_status: 200
+
+- name: "获取不存在的用户"
+  method: GET
+  path: /api/users/999
+  expected_status: 404

@@ -1,0 +1,13 @@
+env: test
+
+api:
+  base_url: http://localhost:5000
+  timeout: 10
+
+web:
+  base_url: http://localhost:8080
+  browser: chromium
+
+protocol:
+  host: localhost
+  port: 9000

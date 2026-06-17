@@ -1,6 +1,7 @@
 # tests/api/test_user.py
 import pytest
 from common.data_loader import load_yaml
+from common.paths import project_path
 
 pytestmark = pytest.mark.api
 
@@ -76,7 +77,7 @@ def test_delete_user(api_client, base_url):
 
 
 # YAML 数据驱动测试
-yaml_cases = load_yaml("test_data/api/user.yaml")
+yaml_cases = load_yaml(project_path("test_data", "api", "user.yaml"))
 
 
 @pytest.mark.parametrize(

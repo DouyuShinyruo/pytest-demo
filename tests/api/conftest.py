@@ -1,19 +1,18 @@
 # tests/api/conftest.py
 import pytest
 import requests
-import subprocess
-import time
+
+from common.process_utils import start_service
 
 
 @pytest.fixture(scope="session")
-def mock_server():
+def mock_server(config):
     """启动 Mock API 服务，测试结束后关闭"""
-    proc = subprocess.Popen(
-        ["python", "mock_services/api_mock.py"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    proc = start_service(
+        "mock_services.api_mock",
+        "127.0.0.1",
+        5000,
     )
-    time.sleep(2)  # 等待服务启动
     yield proc
     proc.terminate()
     proc.wait()

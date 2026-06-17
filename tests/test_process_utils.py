@@ -72,16 +72,39 @@ def test_start_service_failure_includes_stderr():
     assert "No module named" in str(exc_info.value)
 
 
+def _grab_free_port(host="127.0.0.1"):
+    """bind-then-close 技巧：让系统分配一个当前空闲的端口。"""
+    tmp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tmp.bind((host, 0))
+    port = tmp.getsockname()[1]
+    tmp.close()
+    return port
+
+
 def test_start_service_timeout_message_for_hanging_service():
     """服务启动但未在探测端口就绪时，错误信息应为超时提示而非「退出」。
 
     回归测试：修复 start_service 此前因 finally 块覆盖异常导致超时路径
-    抛出误导性「立即退出」消息的问题。这里启动一个真实存在、绑定在别的端口的
-    模块（api_mock 监听 5000），但探测 5099（无人监听）→ wait_for_port
-    必然超时，应得到「未就绪」而非「立即退出」。
+    抛出误导性「立即退出」消息的问题。
+
+    防泄漏设计：dummy 监听 socket 表示「服务确实在别处起来了」，同时探测
+    另一个空闲端口（无人监听）→ wait_for_port 必然超时。start_service 在
+    超时路径上内部已 terminate 该进程，且 C1 已令 api_mock 为单进程
+    （use_reloader=False），故终止即彻底回收，不残留 reloader 子进程。
+    finally 确保 dummy 监听 socket 被关闭。
     """
-    with pytest.raises(RuntimeError) as exc_info:
-        start_service("mock_services.api_mock", "127.0.0.1", 5099, timeout=3.0)
-    msg = str(exc_info.value)
-    assert "未在" in msg and "就绪" in msg   # 超时提示
-    assert "立即退出" not in msg              # 不能是误导性的「退出」消息
+    p_listen = _grab_free_port()
+    p_probe = _grab_free_port()
+    stop = _start_listener("127.0.0.1", p_listen)
+    try:
+        # p_listen 上有 dummy 监听（表示服务已起），但探测 p_probe（空闲）
+        with pytest.raises(RuntimeError) as exc_info:
+            start_service(
+                "mock_services.api_mock", "127.0.0.1", p_probe, timeout=3.0
+            )
+        msg = str(exc_info.value)
+        assert "未在" in msg and "就绪" in msg   # 超时提示
+        assert "立即退出" not in msg              # 不能是误导性的「退出」消息
+    finally:
+        # 回收 dummy 监听 socket，杜绝本测试自身的资源占用。
+        stop()

@@ -128,6 +128,13 @@ locust -f tests/performance/locustfile.py --host=http://localhost:5000
 from common.report_comparator import ReportComparator
 
 comp = ReportComparator()
+
+# 默认：按行号顺序对齐
 result = comp.compare_csv("expected.csv", "actual.csv")
+
+# 按主键列对齐（行顺序无关，适合乱序报表）
+result = comp.compare_csv("expected.csv", "actual.csv", key_column="股票代码")
+
+# 生成 HTML 差异报告（单元格内容自动转义，防 XSS）
 comp.generate_diff_report("expected.csv", "actual.csv", "diff_report.html")
 ```

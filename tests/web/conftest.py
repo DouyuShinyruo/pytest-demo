@@ -1,19 +1,18 @@
 # tests/web/conftest.py
 import pytest
-import subprocess
-import time
 from playwright.sync_api import sync_playwright
+
+from common.process_utils import start_service
 
 
 @pytest.fixture(scope="session")
 def web_server():
     """启动 Web Mock 服务"""
-    proc = subprocess.Popen(
-        ["python", "mock_services/web_mock.py"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    proc = start_service(
+        "mock_services.web_mock",
+        "127.0.0.1",
+        8080,
     )
-    time.sleep(2)
     yield proc
     proc.terminate()
     proc.wait()

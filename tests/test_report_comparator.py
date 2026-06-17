@@ -127,3 +127,34 @@ def test_compare_csv_by_key_column_added_removed():
     types = {d["type"] for d in result["diffs"]}
     assert "added" in types
     assert "removed" in types
+
+
+def test_generate_diff_report_escapes_html():
+    """单元格内容含 HTML 特殊字符时必须被转义，防止破坏/注入报告"""
+    import csv
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f1 = os.path.join(tmpdir, "a.csv")
+        f2 = os.path.join(tmpdir, "b.csv")
+        out = os.path.join(tmpdir, "diff.html")
+
+        with open(f1, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["note"])
+            w.writerow(["<script>alert(1)</script>"])
+
+        with open(f2, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["note"])
+            w.writerow(["a & b"])
+
+        comp = ReportComparator()
+        comp.generate_diff_report(f1, f2, out)
+        with open(out, "r", encoding="utf-8") as fh:
+            content = fh.read()
+
+    # 原始危险串不得直接出现在 HTML 中（必须被转义）
+    assert "<script>alert(1)</script>" not in content
+    assert "a & b" not in content  # 原样 & 不得出现
+    # 转义后形式应出现
+    assert "&lt;script&gt;" in content
+    assert "a &amp; b" in content

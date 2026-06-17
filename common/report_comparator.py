@@ -1,4 +1,5 @@
 import csv
+import html
 import os
 from datetime import datetime
 
@@ -111,18 +112,20 @@ class ReportComparator:
                 change[col] = {"expected": v1, "actual": v2}
         return change
 
-    def generate_diff_report(self, file1, file2, output_path):
+    def generate_diff_report(self, file1, file2, output_path, key_column=None):
         """
-        生成 HTML 差异报告
+        生成 HTML 差异报告。所有单元格内容经 html.escape 转义，防注入。
 
         Args:
             file1: 第一个 CSV 文件路径
             file2: 第二个 CSV 文件路径
             output_path: 输出 HTML 文件路径
+            key_column: 可选，与 compare_csv 一致
         """
-        result = self.compare_csv(file1, file2)
+        result = self.compare_csv(file1, file2, key_column=key_column)
+        esc = html.escape
 
-        html = f"""<!DOCTYPE html>
+        html_doc = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -144,16 +147,15 @@ class ReportComparator:
 <body>
     <h1>报表对比报告</h1>
     <div class="summary">
-        <p><strong>文件 1:</strong> {os.path.basename(file1)}</p>
-        <p><strong>文件 2:</strong> {os.path.basename(file2)}</p>
+        <p><strong>文件 1:</strong> {esc(os.path.basename(file1))}</p>
+        <p><strong>文件 2:</strong> {esc(os.path.basename(file2))}</p>
         <p><strong>差异数量:</strong> <span class="{'equal' if result['is_equal'] else 'not-equal'}">{result['diff_count']}</span></p>
         <p><strong>是否一致:</strong> <span class="{'equal' if result['is_equal'] else 'not-equal'}">{'是' if result['is_equal'] else '否'}</span></p>
         <p><strong>生成时间:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
     </div>
 """
-
         if result["diffs"]:
-            html += """
+            html_doc += """
     <table>
         <tr>
             <th>行号</th>
@@ -162,44 +164,46 @@ class ReportComparator:
         </tr>
 """
             for diff in result["diffs"]:
-                row_num = diff.get("row", "-")
+                row_num = diff.get("row", diff.get("key", "-"))
                 diff_type = diff["type"]
 
                 if diff_type == "header":
-                    detail = f"表头不同: {diff['file1']} vs {diff['file2']}"
+                    detail = f"表头不同: {esc(str(diff['file1']))} vs {esc(str(diff['file2']))}"
                     css_class = "modified"
                 elif diff_type == "added":
-                    detail = f"新增行: {diff['data']}"
+                    detail = f"新增行: {esc(str(diff['data']))}"
                     css_class = "added"
                 elif diff_type == "removed":
-                    detail = f"删除行: {diff['data']}"
+                    detail = f"删除行: {esc(str(diff['data']))}"
                     css_class = "removed"
                 elif diff_type == "modified":
                     changes = diff["changes"]
                     parts = []
                     for col, vals in changes.items():
-                        parts.append(f"{col}: {vals['expected']} → {vals['actual']}")
+                        parts.append(
+                            f"{esc(col)}: {esc(str(vals['expected']))} → {esc(str(vals['actual']))}"
+                        )
                     detail = ", ".join(parts)
                     css_class = "modified"
                 else:
-                    detail = str(diff)
+                    detail = esc(str(diff))
                     css_class = ""
 
-                html += f"""
+                html_doc += f"""
         <tr class="{css_class}">
-            <td>{row_num}</td>
-            <td>{diff_type}</td>
+            <td>{esc(str(row_num))}</td>
+            <td>{esc(diff_type)}</td>
             <td>{detail}</td>
         </tr>
 """
-            html += "    </table>\n"
+            html_doc += "    </table>\n"
 
-        html += """
+        html_doc += """
 </body>
 </html>"""
 
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write(html)
+            f.write(html_doc)
 
     def _read_csv(self, file_path):
         """读取 CSV 文件，返回二维列表"""

@@ -1,9 +1,17 @@
+# common/config.py
 import yaml
+from pathlib import Path
+
+from common.paths import PROJECT_ROOT
 
 
 class Config:
     def __init__(self, config_path="config/config.yaml"):
-        with open(config_path, "r", encoding="utf-8") as f:
+        # 相对路径按项目根解析，避免依赖当前工作目录
+        path = Path(config_path)
+        if not path.is_absolute():
+            path = PROJECT_ROOT / path
+        with open(path, "r", encoding="utf-8") as f:
             self._data = yaml.safe_load(f)
 
     def get(self, key, default=None):

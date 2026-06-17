@@ -7,7 +7,7 @@ from common.logger import get_logger
 @pytest.fixture(scope="session")
 def config():
     """全局配置 fixture"""
-    return Config("config/config.yaml")
+    return Config()
 
 
 @pytest.fixture(scope="session")

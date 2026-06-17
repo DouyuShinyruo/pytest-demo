@@ -62,16 +62,16 @@ def start_service(module, host, port, cwd=PROJECT_ROOT, timeout=10.0, interval=0
             f"服务 {module} 未在 {timeout}s 内就绪于 {host}:{port}。\n"
             f"stderr:\n{err}"
         )
-    finally:
-        # 若进程已提前退出（如模块名错误），communicate 拿到 stderr
-        if proc.poll() is not None:
-            try:
-                _out, err = proc.communicate(timeout=1)
-            except subprocess.TimeoutExpired:
-                err = "<无 stderr>"
-            raise RuntimeError(
-                f"服务 {module} 启动后立即退出（exit={proc.returncode}）。\n"
-                f"stderr:\n{err}"
-            )
+
+    # 进程已提前退出（如模块名错误）——仅在无上面异常时到达此分支
+    if proc.poll() is not None:
+        try:
+            _out, err = proc.communicate(timeout=1)
+        except subprocess.TimeoutExpired:
+            err = "<无 stderr>"
+        raise RuntimeError(
+            f"服务 {module} 启动后立即退出（exit={proc.returncode}）。\n"
+            f"stderr:\n{err}"
+        )
 
     return proc

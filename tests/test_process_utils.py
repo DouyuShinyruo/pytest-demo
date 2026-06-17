@@ -70,3 +70,18 @@ def test_start_service_failure_includes_stderr():
         start_service("this.module.does.not.exist", "127.0.0.1", 0, timeout=2.0)
     # 错误信息里应包含进程产出的 stderr（No module named ...）
     assert "No module named" in str(exc_info.value)
+
+
+def test_start_service_timeout_message_for_hanging_service():
+    """服务启动但未在探测端口就绪时，错误信息应为超时提示而非「退出」。
+
+    回归测试：修复 start_service 此前因 finally 块覆盖异常导致超时路径
+    抛出误导性「立即退出」消息的问题。这里启动一个真实存在、绑定在别的端口的
+    模块（api_mock 监听 5000），但探测 5099（无人监听）→ wait_for_port
+    必然超时，应得到「未就绪」而非「立即退出」。
+    """
+    with pytest.raises(RuntimeError) as exc_info:
+        start_service("mock_services.api_mock", "127.0.0.1", 5099, timeout=3.0)
+    msg = str(exc_info.value)
+    assert "未在" in msg and "就绪" in msg   # 超时提示
+    assert "立即退出" not in msg              # 不能是误导性的「退出」消息

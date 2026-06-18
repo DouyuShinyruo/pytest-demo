@@ -129,6 +129,30 @@ def test_compare_csv_by_key_column_added_removed():
     assert "removed" in types
 
 
+def test_compare_csv_by_key_column_rejects_duplicate_keys():
+    """key_column 模式下，同一文件主键重复必须报错，而不是静默折叠行"""
+    import csv
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f1 = os.path.join(tmpdir, "a.csv")
+        f2 = os.path.join(tmpdir, "b.csv")
+
+        # f1 中 '1' 出现两次（脏数据）
+        with open(f1, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "v"])
+            w.writerow(["1", "x"])
+            w.writerow(["1", "y"])
+
+        with open(f2, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "v"])
+            w.writerow(["1", "x"])
+
+        comp = ReportComparator()
+        with pytest.raises(ValueError, match="重复值"):
+            comp.compare_csv(f1, f2, key_column="id")
+
+
 def test_generate_diff_report_escapes_html():
     """单元格内容含 HTML 特殊字符时必须被转义，防止破坏/注入报告"""
     import csv

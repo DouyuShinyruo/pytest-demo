@@ -12,6 +12,8 @@ import tempfile
 import pytest
 import requests
 
+from common.paths import PROJECT_ROOT
+
 pytestmark = pytest.mark.performance
 
 P95_THRESHOLD_MS = 2000  # 宽松阈值：慢 CI 能过，但拦灾难性回归
@@ -54,7 +56,7 @@ def test_api_performance_p95_under_threshold(mock_server):
         ]
         result = subprocess.run(
             cmd,
-            cwd=os.getcwd(),
+            cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=60,

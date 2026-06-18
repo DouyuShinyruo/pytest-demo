@@ -70,16 +70,25 @@ class ReportComparator:
             raise ValueError(f"key_column '{key_column}' 不在表头中: {headers}")
         key_idx = headers.index(key_column)
 
-        def to_dict(rows):
+        def to_dict(rows, source):
             d = {}
             for row in rows:
                 if key_idx >= len(row):
-                    continue
-                d[row[key_idx]] = row
+                    # 缺主键列的行是脏数据，必须显式报错而非静默丢弃
+                    raise ValueError(
+                        f"{source} 中存在不含主键列 '{key_column}' 的数据行: {row}"
+                    )
+                key = row[key_idx]
+                if key in d:
+                    # 主键列重复会让多行折叠成一行，导致对比结果失真，必须报错
+                    raise ValueError(
+                        f"{source} 中主键列 '{key_column}' 存在重复值 '{key}'"
+                    )
+                d[key] = row
             return d
 
-        map1 = to_dict(data1)
-        map2 = to_dict(data2)
+        map1 = to_dict(data1, "file1")
+        map2 = to_dict(data2, "file2")
         keys = set(map1) | set(map2)
 
         diffs = []

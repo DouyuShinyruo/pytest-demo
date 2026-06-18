@@ -12,8 +12,10 @@ def _start_listener(host, port):
     srv.listen(1)
     srv.settimeout(0.2)
 
+    stop_event = threading.Event()
+
     def _accept_loop():
-        while not srv._closed:
+        while not stop_event.is_set():
             try:
                 conn, _ = srv.accept()
                 conn.close()
@@ -22,12 +24,11 @@ def _start_listener(host, port):
             except OSError:
                 break
 
-    srv._closed = False
     t = threading.Thread(target=_accept_loop, daemon=True)
     t.start()
 
     def stop():
-        srv._closed = True
+        stop_event.set()
         srv.close()
 
     return stop

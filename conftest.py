@@ -1,8 +1,20 @@
 # conftest.py
+import subprocess
+
 import pytest
 from common.config import Config
 from common.logger import get_logger
 from common.process_utils import start_service
+
+
+def _stop_service(proc):
+    """可靠关闭服务进程：先 terminate，超时则 kill，杜绝孤儿进程。"""
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
 
 
 @pytest.fixture(scope="session")
@@ -30,8 +42,7 @@ def mock_server():
         5000,
     )
     yield proc
-    proc.terminate()
-    proc.wait()
+    _stop_service(proc)
 
 
 @pytest.fixture(scope="session")
@@ -43,6 +54,5 @@ def web_server():
         8080,
     )
     yield proc
-    proc.terminate()
-    proc.wait()
+    _stop_service(proc)
 

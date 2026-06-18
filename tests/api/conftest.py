@@ -2,20 +2,8 @@
 import pytest
 import requests
 
-from common.process_utils import start_service
-
-
-@pytest.fixture(scope="session")
-def mock_server(config):
-    """启动 Mock API 服务，测试结束后关闭"""
-    proc = start_service(
-        "mock_services.api_mock",
-        "127.0.0.1",
-        5000,
-    )
-    yield proc
-    proc.terminate()
-    proc.wait()
+# mock_server 已上提到根 conftest.py 作为 session 级全局共享服务（端口 5000），
+# 避免与 step_defs/、性能测试争抢同一端口。
 
 
 @pytest.fixture(scope="function")

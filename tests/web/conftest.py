@@ -2,20 +2,7 @@
 import pytest
 from playwright.sync_api import sync_playwright
 
-from common.process_utils import start_service
-
-
-@pytest.fixture(scope="session")
-def web_server():
-    """启动 Web Mock 服务"""
-    proc = start_service(
-        "mock_services.web_mock",
-        "127.0.0.1",
-        8080,
-    )
-    yield proc
-    proc.terminate()
-    proc.wait()
+# web_server 已上提到根 conftest.py 作为 session 级全局共享服务（端口 8080）。
 
 
 @pytest.fixture(scope="function")

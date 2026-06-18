@@ -1,21 +1,7 @@
 import pytest
-import subprocess
-import time
 from playwright.sync_api import sync_playwright
 
-
-@pytest.fixture(scope="session")
-def web_server():
-    """启动 Web Mock 服务"""
-    proc = subprocess.Popen(
-        ["python", "mock_services/web_mock.py"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    time.sleep(2)
-    yield proc
-    proc.terminate()
-    proc.wait()
+# web_server 复用根 conftest.py 的 session 级全局服务（端口 8080）。
 
 
 @pytest.fixture(scope="function")

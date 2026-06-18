@@ -70,3 +70,115 @@ def test_generate_diff_report(sample_csv_files):
         assert "报表对比报告" in content
     finally:
         os.unlink(output)
+
+
+def test_compare_csv_by_key_column_order_independent():
+    """key_column 模式下，行顺序不同也能正确匹配"""
+    import csv
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f1 = os.path.join(tmpdir, "a.csv")
+        f2 = os.path.join(tmpdir, "b.csv")
+
+        with open(f1, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["股票代码", "价格"])
+            w.writerow(["600000", "10.5"])
+            w.writerow(["600001", "20.0"])
+
+        # f2 行顺序打乱，且 600001 价格变了
+        with open(f2, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["股票代码", "价格"])
+            w.writerow(["600001", "20.5"])
+            w.writerow(["600000", "10.5"])
+
+        comp = ReportComparator()
+        result = comp.compare_csv(f1, f2, key_column="股票代码")
+
+    assert result["is_equal"] is False
+    # 只有 600001 一行有差异（顺序无关），不应误报 600000
+    modified = [d for d in result["diffs"] if d["type"] == "modified"]
+    assert len(modified) == 1
+    assert modified[0]["key"] == "600001"
+
+
+def test_compare_csv_by_key_column_added_removed():
+    """key_column 模式下，单侧存在的键标记 added/removed"""
+    import csv
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f1 = os.path.join(tmpdir, "a.csv")
+        f2 = os.path.join(tmpdir, "b.csv")
+
+        with open(f1, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "v"])
+            w.writerow(["1", "x"])
+            w.writerow(["2", "y"])  # 仅 f1 有 → removed
+
+        with open(f2, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "v"])
+            w.writerow(["1", "x"])
+            w.writerow(["3", "z"])  # 仅 f2 有 → added
+
+        comp = ReportComparator()
+        result = comp.compare_csv(f1, f2, key_column="id")
+
+    types = {d["type"] for d in result["diffs"]}
+    assert "added" in types
+    assert "removed" in types
+
+
+def test_compare_csv_by_key_column_rejects_duplicate_keys():
+    """key_column 模式下，同一文件主键重复必须报错，而不是静默折叠行"""
+    import csv
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f1 = os.path.join(tmpdir, "a.csv")
+        f2 = os.path.join(tmpdir, "b.csv")
+
+        # f1 中 '1' 出现两次（脏数据）
+        with open(f1, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "v"])
+            w.writerow(["1", "x"])
+            w.writerow(["1", "y"])
+
+        with open(f2, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "v"])
+            w.writerow(["1", "x"])
+
+        comp = ReportComparator()
+        with pytest.raises(ValueError, match="重复值"):
+            comp.compare_csv(f1, f2, key_column="id")
+
+
+def test_generate_diff_report_escapes_html():
+    """单元格内容含 HTML 特殊字符时必须被转义，防止破坏/注入报告"""
+    import csv
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f1 = os.path.join(tmpdir, "a.csv")
+        f2 = os.path.join(tmpdir, "b.csv")
+        out = os.path.join(tmpdir, "diff.html")
+
+        with open(f1, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["note"])
+            w.writerow(["<script>alert(1)</script>"])
+
+        with open(f2, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["note"])
+            w.writerow(["a & b"])
+
+        comp = ReportComparator()
+        comp.generate_diff_report(f1, f2, out)
+        with open(out, "r", encoding="utf-8") as fh:
+            content = fh.read()
+
+    # 原始危险串不得直接出现在 HTML 中（必须被转义）
+    assert "<script>alert(1)</script>" not in content
+    assert "a & b" not in content  # 原样 & 不得出现
+    # 转义后形式应出现
+    assert "&lt;script&gt;" in content
+    assert "a &amp; b" in content

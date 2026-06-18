@@ -4,6 +4,7 @@ stages:
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  ALLURE_VERSION: "2.27.0"
 
 cache:
   paths:
@@ -14,11 +15,30 @@ test:
   image: python:3.11
   script:
     - pip install -r requirements.txt
+    - playwright install --with-deps chromium
     - mkdir -p reports
-    - pytest tests/ --html=reports/report.html --self-contained-html --junitxml=reports/junit.xml
+    - pytest tests/ step_defs/ -v --html=reports/report.html --self-contained-html --junitxml=reports/junit.xml --cov=common --cov-report=html:reports/coverage
   artifacts:
     when: always
     paths:
       - reports/
     reports:
       junit: reports/junit.xml
+
+allure-report:
+  stage: report
+  image: python:3.11
+  needs: [test]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+  script:
+    # allure CLI 是独立 Java 工具，allure-pytest 只产出 JSON
+    - apt-get update && apt-get install -y --no-install-recommends default-jre-headless ca-certificates curl
+    - curl -fsSL -o /tmp/allure.tgz "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
+    - tar -xzf /tmp/allure.tgz -C /opt/
+    - ln -s /opt/allure-${ALLURE_VERSION}/bin/allure /usr/local/bin/allure
+    - allure generate reports/allure-results -o reports/allure-report --clean
+  artifacts:
+    when: always
+    paths:
+      - reports/allure-report/

@@ -7,3 +7,4 @@ playwright>=1.40.0
 pytest-bdd>=7.0.0
 locust>=2.20.0
 allure-pytest>=2.13.0
+pytest-cov>=4.0.0

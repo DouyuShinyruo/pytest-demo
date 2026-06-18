@@ -1,9 +1,9 @@
 # tests/protocol/conftest.py
 import pytest
 import socket
-import subprocess
-import time
 import json
+
+from common.process_utils import start_service
 
 
 class STEPClient:
@@ -23,6 +23,7 @@ class STEPClient:
             self.sock.close()
 
     def send(self, msg):
+        """发送消息并接收响应"""
         self.sock.sendall(json.dumps(msg).encode("utf-8") + b"|END")
         data = self.sock.recv(4096).decode("utf-8")
         response_str = data.replace("|END", "")
@@ -50,12 +51,11 @@ class STEPClient:
 @pytest.fixture(scope="session")
 def step_server():
     """启动 STEP 模拟网关"""
-    proc = subprocess.Popen(
-        ["python", "mock_services/step_gateway_mock.py"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    proc = start_service(
+        "mock_services.step_gateway_mock",
+        "127.0.0.1",
+        9000,
     )
-    time.sleep(2)
     yield proc
     proc.terminate()
     proc.wait()

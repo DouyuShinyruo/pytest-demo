@@ -24,6 +24,8 @@
 pytest-framework/
 ├── common/                    # 工具库
 │   ├── config.py              # 配置管理
+│   ├── paths.py               # 项目根路径（消除 CWD 依赖）
+│   ├── process_utils.py       # 服务进程启动 / 端口等待 / 清理
 │   ├── logger.py              # 日志封装
 │   ├── data_loader.py         # YAML 数据加载
 │   ├── report_comparator.py   # 报表对比工具
@@ -38,7 +40,7 @@ pytest-framework/
 │   ├── web/                   # Web UI 测试
 │   ├── protocol/              # STEP 协议测试
 │   ├── reports/               # 报表对比测试
-│   └── performance/           # Locust 性能测试
+│   └── performance/           # Locust 性能测试（含门槛回归）
 ├── step_defs/                 # BDD 步骤实现
 ├── features/                  # BDD 场景文件
 ├── test_data/                 # 测试数据（YAML / CSV）
@@ -93,11 +95,15 @@ docker-compose up --build
 
 ### 5. 性能测试
 
-```bash
-# 启动 API Mock 服务
-python mock_services/api_mock.py &
+性能门槛回归以普通 pytest 测试形式运行（CI 自动执行）：自动启动本地 mock，
+headless 跑 Locust，断言失败率与 p95 达标。
 
-# 运行 Locust 压测
+```bash
+# 运行性能门槛回归（自动起 mock + 跑 locust + 校验阈值）
+pytest tests/performance/ -v
+
+# 交互式压测（手动启动 mock 后用 Locust Web UI）
+python mock_services/api_mock.py &
 locust -f tests/performance/locustfile.py --host=http://localhost:5000
 ```
 
@@ -109,16 +115,17 @@ locust -f tests/performance/locustfile.py --host=http://localhost:5000
 | Web UI 测试 | Playwright 登录流程 | 6 |
 | STEP 协议测试 | 报单/撤单/查询 | 6 |
 | BDD 场景 | API + Web | 5 |
-| 报表对比 | CSV 差异检测 | 5 |
-| 单元测试 | config/logger/data_loader | 7 |
-| **总计** | | **39** |
+| 报表对比 | CSV 差异检测（单元 + 集成） | 9 |
+| 性能测试 | Locust 门槛回归 | 1 |
+| 工具库单元测试 | config/paths/process_utils/logger/data_loader/report_comparator | 16 |
+| **总计** | | **53** |
 
 ## CI/CD
 
 项目同时支持 Jenkins 和 GitLab CI：
 
-- **Jenkins**：使用 `Jenkinsfile`，支持 HTML 和 JUnit 报告发布
-- **GitLab CI**：使用 `.gitlab-ci.yml`，支持缓存和 artifact 归档
+- **Jenkins**：使用 `Jenkinsfile`，发布 HTML、JUnit 报告并生成 Allure 静态报告
+- **GitLab CI**：使用 `.gitlab-ci.yml`，支持缓存、artifact 归档与 Allure 报告生成
 
 ## 报表对比工具
 
